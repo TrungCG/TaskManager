@@ -59,5 +59,5 @@ class TaskTag(models.Model):
     tag = models.ForeignKey(Tag, on_delete=models.CASCADE, related_name='task_tags')
     
     def __str__(self):
-        return f"Tag: {self.tag.name} for Task: {self.task.title}"
+        return f"Task: {self.task.title} (Tag: {self.tag.name})"
 

@@ -1,8 +1,9 @@
 from dataclasses import fields
 from rest_framework import serializers
-from .models import Task, User
+from .models import Category, Tag, Task, TaskFile, User
 from  rest_framework.validators import UniqueValidator
 
+#
 class SignupSerializer(serializers.ModelSerializer):
     email = serializers.EmailField(
         required=True,
@@ -23,8 +24,32 @@ class SignupSerializer(serializers.ModelSerializer):
         user.save()
         return user
 
+#Task Serializers
 class TaskSerializer(serializers.ModelSerializer):
-    
+    # owner = serializers.StringRelatedField()
+    # category = serializers.StringRelatedField()    
     class Meta:
         model = Task
         fields = '__all__'
+
+#Tag Serializers        
+class TagSerializer(serializers.ModelSerializer):
+    
+    class Meta:
+        model = Tag
+        fields = '__all__'
+
+#Catogery Serializers        
+class CategorySerializer(serializers.ModelSerializer):
+    
+    class Meta:
+        model = Category
+        fields = '__all__'
+
+#TaskFile Serializers        
+class TaskFileSerializer(serializers.ModelSerializer):
+    
+    class Meta:
+        model = TaskFile
+        fields = '__all__'
+        
