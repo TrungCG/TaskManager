@@ -1,3 +1,4 @@
+import os
 from ast import Delete
 from calendar import c
 from functools import partial
@@ -7,6 +8,9 @@ from rest_framework.views import APIView
 import rest_framework.status as status
 from rest_framework.response import Response
 from django.http import Http404
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.parsers import MultiPartParser, FormParser
+
 
 from .models import User,Task, Category, Tag, TaskFile
 from .serializers import SignupSerializer,TaskSerializer, CategorySerializer, TagSerializer
@@ -24,16 +28,28 @@ class SignupView(APIView):
 
 #Task
 class TaskView(APIView):
+    permission_classes = [IsAuthenticated]
     def get(self, request, pk=None):
         if pk:
             try:
                 serializer = Task.objects.get(pk=pk)
             except Task.DoesNotExist:
                 raise Http404("Task not found")
+            
+            # kiểm tra quyền: chỉ owner hoặc admin mới được xem
+            if serializer.owner != request.user and not request.user.is_staff:
+                return Response({"detail": "Not allowed"}, status=status.HTTP_403_FORBIDDEN)
+            
             tasks = TaskSerializer(serializer)
             return Response(tasks.data, status=status.HTTP_200_OK)
         else:
-            serializer = Task.objects.all()
+            
+            if request.user.is_staff:  # admin
+                serializer = Task.objects.all()
+            else:  # user thường
+                serializer = Task.objects.filter(owner=request.user)
+                
+            # serializer = Task.objects.all()
             tasks = TaskSerializer(serializer, many=True)
             return Response(tasks.data, status=status.HTTP_200_OK)
     
@@ -172,32 +188,55 @@ class TagView(APIView):
     
 #TaskFile
 class TaskFileView(APIView):
+    permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser]
+
     def post(self, request, pk):
-        try: 
-            serializer = Task.objects.get(pk=pk)
-        except Task.DoesNotExist:
-            raise Http404("Task not found")        
-        task_file = TaskFileSerializer(data = request.data)
-        if task_file.is_valid():
-            task_file.save(task=serializer)
-            return Response(task_file.data, status= status.HTTP_201_CREATED)
-        return Response(task_file.errors, status= status.HTTP_400_BAD_REQUEST)
-    
-    def put(self,request, pk):
         try:
-            task_file = TaskFile.objects.get(pk=pk)
-        except TaskFile.DoesNotExist:
-            raise Http404("File not found")
-        task_files = TaskFileSerializer(task_file, data=request.data)
-        if task_files.is_valid():
-            task_files.save()
-            return Response(task_files.data, status=status.HTTP_200_OK)
-        return Response(task_files.errors, status=status.HTTP_400_BAD_REQUEST)
+            task = Task.objects.get(pk=pk)
+        except Task.DoesNotExist:
+            raise Http404("Task not found")
+
+        # chỉ owner hoặc admin mới được upload
+        if task.owner != request.user and not request.user.is_staff:
+            return Response({"detail": "Not allowed"}, status=status.HTTP_403_FORBIDDEN)
+
+        serializer = TaskFileSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save(task=task)  # gắn file vào task
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
     def delete(self, request, pk):
+        # try:
+        #     tasks = Task.objects.get(pk=pk)
+        # except Task.DoesNotExist:
+        #     raise Http404("File not found")
+        # if tasks.task.owner != request.user and not request.user.is_staff:
+        #     return Response({"detail": "Not allowed"}, status=status.HTTP_403_FORBIDDEN)
+        # # Xóa file vật lý trong MEDIA_ROOT
+        # file_path = tasks.file_path.path
+        # if os.path.exists(file_path):
+        #     os.remove(file_path)
+        # # Xóa record trong DB
+        # tasks.delete()
+        # return Response(status=status.HTTP_204_NO_CONTENT)
+        
+        
         try:
             task_file = TaskFile.objects.get(pk=pk)
         except TaskFile.DoesNotExist:
             raise Http404("File not found")
+
+        # chỉ owner hoặc admin mới được xóa
+        if task_file.task.owner != request.user and not request.user.is_staff:
+            return Response({"detail": "Not allowed"}, status=status.HTTP_403_FORBIDDEN)
+
+        # Xóa file vật lý trong MEDIA_ROOT
+        file_path = task_file.file_path.path
+        if os.path.exists(file_path):
+            os.remove(file_path)
+
+        # Xóa record trong DB
         task_file.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)

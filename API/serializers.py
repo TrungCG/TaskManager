@@ -52,4 +52,5 @@ class TaskFileSerializer(serializers.ModelSerializer):
     class Meta:
         model = TaskFile
         fields = '__all__'
+        read_only_fields = ['id', 'uploaded_at', 'task']
         
