@@ -49,8 +49,10 @@ AUTH_USER_MODEL = 'API.User'
 # 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
+        'rest_framework_simplejwt.authentication.JWTAuthentication',# Using JWT for authentication
     ),
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',# Using page number pagination
+    'PAGE_SIZE': 10, # Number of items per page
 }
 
 MIDDLEWARE = [

@@ -2,6 +2,7 @@ import os
 from ast import Delete
 from calendar import c
 from functools import partial
+from turtle import title
 from unicodedata import category
 from django.shortcuts import render
 from rest_framework.views import APIView
@@ -10,6 +11,8 @@ from rest_framework.response import Response
 from django.http import Http404
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.parsers import MultiPartParser, FormParser
+from django.db.models import Q
+from django.utils.dateparse import parse_datetime
 
 
 from .models import User,Task, Category, Tag, TaskFile
@@ -44,14 +47,51 @@ class TaskView(APIView):
             return Response(tasks.data, status=status.HTTP_200_OK)
         else:
             
+            # search = request.query_params.get("q")
+            # if request.user.is_staff:  # admin
+            #     queryset = Task.objects.all()
+            # else:  # user thường
+            #     queryset = Task.objects.filter(owner=request.user)
+            # if search:
+            #     queryset = queryset.filter(
+            #         Q(description__icontains=search)|
+            #         Q(title__icontains=search)|
+            #         Q(status__icontains=search)|
+            #         Q(priority__icontains=search)|
+            #         Q(due_date__icontains=search)
+            #         )    
+            # # serializer = Task.objects.all()
+            # tasks = TaskSerializer(queryset, many=True)
+            # return Response(tasks.data, status=status.HTTP_200_OK)
+            search_title = request.query_params.get("title")
+            search_description = request.query_params.get("description")
+            search_status = request.query_params.get("status")
+            search_priority = request.query_params.get("priority")
+            search_due_date = request.query_params.get("due_date")
             if request.user.is_staff:  # admin
-                serializer = Task.objects.all()
+                queryset = Task.objects.all()
             else:  # user thường
-                serializer = Task.objects.filter(owner=request.user)
+                queryset = Task.objects.filter(owner=request.user)
+            
+            if search_title:
+                queryset = queryset.filter(title__icontains=search_title)
+            
+            if search_description:
+                queryset = queryset.filter(description__icontains=search_description)
+        
+            if search_status:
+                queryset = queryset.filter(status=search_status)
                 
-            # serializer = Task.objects.all()
-            tasks = TaskSerializer(serializer, many=True)
+            if search_priority:
+                queryset = queryset.filter(priority=search_priority)
+                
+            if search_due_date:
+                date_obj = parse_datetime(search_due_date)
+                if date_obj:
+                    queryset = queryset.filter(due_date=date_obj)
+            tasks = TaskSerializer(queryset, many=True)
             return Response(tasks.data, status=status.HTTP_200_OK)
+        
     
     def post(self, request):
         tasks = TaskSerializer(data=request.data)
